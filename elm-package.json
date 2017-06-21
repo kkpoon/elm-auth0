@@ -1,5 +1,5 @@
 {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "summary": "Auth0 data types and helper functions",
     "repository": "https://github.com/kkpoon/elm-auth0.git",
     "license": "BSD3",
