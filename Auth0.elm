@@ -31,6 +31,7 @@ module Auth0
 
 -}
 
+import Date
 import Http exposing (Request)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode as Decode exposing (Decoder, maybe, list, string, bool)
@@ -77,8 +78,9 @@ You should define your own `user_metadata` and `app_metadata` records.
 type alias Profile userMetaData appMetaData =
     { email : String
     , email_verified : Bool
-    , family_name : String
-    , given_name : String
+    , created_at : Date.Date
+    , family_name : Maybe String
+    , given_name : Maybe String
     , global_client_id : Maybe String
     , identities : List OAuth2Identity
     , locale : Maybe String
@@ -102,8 +104,9 @@ profileDecoder a b =
     decode Profile
         |> required "email" string
         |> required "email_verified" bool
-        |> required "family_name" string
-        |> required "given_name" string
+        |> required "created_at" dateDecoder
+        |> optional "family_name" (maybe string) Nothing
+        |> optional "given_name" (maybe string) Nothing
         |> optional "global_client_id" (maybe string) Nothing
         |> required "identities" (list oAuth2IdentityDecoder)
         |> optional "locale" (maybe string) Nothing
@@ -113,6 +116,20 @@ profileDecoder a b =
         |> required "user_id" string
         |> optional "user_metadata" (maybe a) Nothing
         |> optional "app_metadata" (maybe b) Nothing
+
+
+dateDecoder : Decoder Date.Date
+dateDecoder =
+    let
+        dateStringDecode dateString =
+            case Date.fromString dateString of
+                Result.Ok date ->
+                    Decode.succeed date
+
+                Err errorMessage ->
+                    Decode.fail errorMessage
+    in
+        Decode.string |> Decode.andThen dateStringDecode
 
 
 {-| The OAuth2 identity of the unified user profile. This usually tell the
