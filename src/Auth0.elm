@@ -31,12 +31,13 @@ module Auth0
 
 -}
 
-import Date
 import Http exposing (Request)
-import Json.Decode as Decode exposing (Decoder)
-import Json.Decode as Decode exposing (Decoder, maybe, list, string, bool)
-import Json.Decode.Pipeline exposing (decode, required, optional)
+import Iso8601
+import Json.Decode as Decode exposing (Decoder, maybe, list, string, bool, field)
 import Json.Encode as Encode
+import Parser
+import Time
+import Url
 
 
 {-| Auth0 Endpoint of Authentication API and Management API
@@ -78,7 +79,7 @@ You should define your own `user_metadata` and `app_metadata` records.
 type alias Profile userMetaData appMetaData =
     { email : String
     , email_verified : Bool
-    , created_at : Date.Date
+    , created_at : Time.Posix
     , family_name : Maybe String
     , given_name : Maybe String
     , global_client_id : Maybe String
@@ -101,33 +102,36 @@ You should define your own `user_metadata` and `app_metadata` decoders.
 -}
 profileDecoder : Decoder a -> Decoder b -> Decoder (Profile a b)
 profileDecoder a b =
-    decode Profile
-        |> required "email" string
-        |> required "email_verified" bool
-        |> required "created_at" dateDecoder
-        |> optional "family_name" (maybe string) Nothing
-        |> optional "given_name" (maybe string) Nothing
-        |> optional "global_client_id" (maybe string) Nothing
-        |> required "identities" (list oAuth2IdentityDecoder)
-        |> optional "locale" (maybe string) Nothing
-        |> required "name" string
-        |> required "nickname" string
-        |> required "picture" string
-        |> required "user_id" string
-        |> optional "user_metadata" (maybe a) Nothing
-        |> optional "app_metadata" (maybe b) Nothing
+    Decode.map7
+        (<|)
+        (Decode.map8 Profile
+            (field "email" string)
+            (field "email_verified" bool)
+            (field "created_at" dateDecoder)
+            (maybe (field "family_name" string))
+            (maybe (field "given_name" string))
+            (maybe (field "global_client_id" string))
+            (field "identities" (list oAuth2IdentityDecoder))
+            (maybe (field "locale" string))
+        )
+        (field "name" string)
+        (field "nickname" string)
+        (field "picture" string)
+        (field "user_id" string)
+        (maybe (field "user_metadata" a))
+        (maybe (field "app_metadata" b))
 
 
-dateDecoder : Decoder Date.Date
+dateDecoder : Decoder Time.Posix
 dateDecoder =
     let
         dateStringDecode dateString =
-            case Date.fromString dateString of
+            case Iso8601.toTime dateString of
                 Result.Ok date ->
                     Decode.succeed date
 
                 Err errorMessage ->
-                    Decode.fail errorMessage
+                    Decode.fail (Parser.deadEndsToString errorMessage)
     in
         Decode.string |> Decode.andThen dateStringDecode
 
@@ -145,11 +149,11 @@ type alias OAuth2Identity =
 
 oAuth2IdentityDecoder : Decoder OAuth2Identity
 oAuth2IdentityDecoder =
-    decode OAuth2Identity
-        |> required "connection" string
-        |> required "isSocial" bool
-        |> required "provider" string
-        |> required "user_id" string
+    Decode.map4 OAuth2Identity
+        (field "connection" string)
+        (field "isSocial" bool)
+        (field "provider" string)
+        (field "user_id" string)
 
 
 {-| Create the URL to the login page
@@ -187,7 +191,7 @@ auth0AuthorizeURL auth0Config responseType redirectURL scopes maybeConn =
                 |> Maybe.withDefault ""
 
         scopeParam =
-            scopes |> String.join " " |> Http.encodeUri
+            scopes |> String.join " " |> Url.percentEncode
     in
         auth0Config.endpoint
             ++ "/authorize"
@@ -205,7 +209,7 @@ getAuthedUserProfile :
     -> IdToken
     -> Decoder profile
     -> Request profile
-getAuthedUserProfile auth0Endpoint idToken profileDecoder =
+getAuthedUserProfile auth0Endpoint idToken pDecoder =
     Http.request
         { method = "POST"
         , headers = []
@@ -213,7 +217,7 @@ getAuthedUserProfile auth0Endpoint idToken profileDecoder =
         , body =
             Http.jsonBody <|
                 Encode.object [ ( "id_token", Encode.string idToken ) ]
-        , expect = Http.expectJson profileDecoder
+        , expect = Http.expectJson pDecoder
         , timeout = Nothing
         , withCredentials = False
         }
@@ -228,7 +232,7 @@ updateUserMetaData :
     -> Encode.Value
     -> Decoder profile
     -> Request profile
-updateUserMetaData auth0Endpoint idToken userID userMeta profileDecoder =
+updateUserMetaData auth0Endpoint idToken userID userMeta pDecoder =
     Http.request
         { method = "PATCH"
         , headers = [ Http.header "Authorization" ("Bearer " ++ idToken) ]
@@ -237,7 +241,7 @@ updateUserMetaData auth0Endpoint idToken userID userMeta profileDecoder =
             Http.jsonBody <|
                 Encode.object
                     [ ( "user_metadata", userMeta ) ]
-        , expect = Http.expectJson profileDecoder
+        , expect = Http.expectJson pDecoder
         , timeout = Nothing
         , withCredentials = False
         }
