@@ -31,7 +31,7 @@ module Auth0
 
 -}
 
-import Http exposing (Request)
+import Http exposing (..)
 import Iso8601
 import Json.Decode as Decode exposing (Decoder, maybe, list, string, bool, field)
 import Json.Encode as Encode
@@ -136,6 +136,10 @@ dateDecoder =
         Decode.string |> Decode.andThen dateStringDecode
 
 
+
+type Msg
+  = GotProfile (Result Http.Error String)
+
 {-| The OAuth2 identity of the unified user profile. This usually tell the
 social account or database account linked with the unified user profile.
 -}
@@ -207,8 +211,8 @@ auth0AuthorizeURL auth0Config responseType redirectURL scopes maybeConn =
 getAuthedUserProfile :
     Endpoint
     -> IdToken
-    -> Decoder profile
-    -> Request profile
+    -> Decoder String
+    -> Cmd Msg
 getAuthedUserProfile auth0Endpoint idToken pDecoder =
     Http.request
         { method = "POST"
@@ -217,9 +221,9 @@ getAuthedUserProfile auth0Endpoint idToken pDecoder =
         , body =
             Http.jsonBody <|
                 Encode.object [ ( "id_token", Encode.string idToken ) ]
-        , expect = Http.expectJson pDecoder
+        , expect = Http.expectJson GotProfile pDecoder
         , timeout = Nothing
-        , withCredentials = False
+        , tracker = Nothing
         }
 
 
@@ -230,8 +234,8 @@ updateUserMetaData :
     -> IdToken
     -> UserID
     -> Encode.Value
-    -> Decoder profile
-    -> Request profile
+    -> Decoder String
+    -> Cmd Msg
 updateUserMetaData auth0Endpoint idToken userID userMeta pDecoder =
     Http.request
         { method = "PATCH"
@@ -241,7 +245,7 @@ updateUserMetaData auth0Endpoint idToken userID userMeta pDecoder =
             Http.jsonBody <|
                 Encode.object
                     [ ( "user_metadata", userMeta ) ]
-        , expect = Http.expectJson pDecoder
+        , expect = Http.expectJson GotProfile pDecoder
         , timeout = Nothing
-        , withCredentials = False
+        , tracker = Nothing
         }
