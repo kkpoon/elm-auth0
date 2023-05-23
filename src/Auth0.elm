@@ -186,13 +186,18 @@ auth0AuthorizeURL :
     -> String
     -> List String
     -> Maybe String
+    -> Maybe String
     -> String
-auth0AuthorizeURL auth0Config responseType redirectURL scopes maybeConn =
+auth0AuthorizeURL auth0Config responseType redirectURL scopes maybeConn maybeAud =
     let
         connectionParam =
             maybeConn
                 |> Maybe.map (\c -> "&connection=" ++ c)
                 |> Maybe.withDefault ""
+        audParam =
+          maybeAud
+            |> Maybe.map (\aud -> "&audience=" ++ aud)
+            |> Maybe.withDefault ""
 
         scopeParam =
             scopes |> String.join " " |> Url.percentEncode
@@ -202,6 +207,7 @@ auth0AuthorizeURL auth0Config responseType redirectURL scopes maybeConn =
             ++ ("?response_type=" ++ responseType)
             ++ ("&client_id=" ++ auth0Config.clientId)
             ++ connectionParam
+            ++ audParam
             ++ ("&redirect_uri=" ++ redirectURL)
             ++ ("&scope=" ++ scopeParam)
 

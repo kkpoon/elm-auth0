@@ -3,7 +3,7 @@
     "name": "kkpoon/elm-auth0",
     "summary": "Auth0 data types and helper functions",
     "license": "BSD-3-Clause",
-    "version": "4.0.0",
+    "version": "5.0.0",
     "exposed-modules": [
         "Auth0"
     ],
