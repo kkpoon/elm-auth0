@@ -168,6 +168,7 @@ oAuth2IdentityDecoder =
         -> String -- redirectURL
         -> List String -- scopes
         -> Maybe String -- connection
+        -> Maybe String -- audience
         -> String
 
 e.g.
@@ -178,6 +179,7 @@ e.g.
         "https://my-app/"
         [ "openid", "name", "email" ]
         (Just "google-oauth2")
+        Nothing
 
 -}
 auth0AuthorizeURL :

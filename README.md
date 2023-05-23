@@ -17,4 +17,5 @@ auth0AuthorizeURL
     "https://my-app/"
     [ "openid", "name", "email" ]
     (Just "google-oauth2")
+    Nothing
 ```
